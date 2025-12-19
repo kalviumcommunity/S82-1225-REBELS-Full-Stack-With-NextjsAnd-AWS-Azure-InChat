@@ -55,3 +55,11 @@ easy to configure across different environments.
 - feature/login-auth
 - chore/env-setup
 - docs/update-readme
+
+We use feature-based branches and pull requests.
+A PR template ensures consistency, and all changes go through review before merging into main.”
+
+
+
+## 🐳 Docker & Local Development Setup
+This project uses Docker and Docker Compose to run the full stack locally.
