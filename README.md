@@ -1,65 +1,44 @@
-# Inchat 
-Inchat is a **WhatsApp Mini Clone** built using **Next.js (TypeScript)**.  
-This project is developed as part of **Sprint-1 at Kalvium** and focuses on
-building a clean, scalable foundation for a real-time chat application.
+﻿# Inchat
 
----
+Inchat is a **WhatsApp-like one-to-one realtime chat** app built with **Next.js (TypeScript)**, **Prisma**, **PostgreSQL**, and **Socket.IO**.
 
-## Project Overview
-Building a full-scale chat application is complex. 
+## Whats included
 
-**Inchat** is a simplified version that helps understand how real-time messaging
-works using modern full-stack technologies.
-The application allows users to:
-- Sign up and log in
-- View chat conversations
-- Send one-to-one messages in real time
+- Normalized schema: Users, Chats, ChatParticipants, DirectChat, Messages (constraints + indexes)
+- Secure auth: bcrypt password hashing + JWT in an httpOnly cookie
+- Realtime messaging: Socket.IO rooms per chat (cookie-authenticated)
+- Optional scaling: Redis adapter enabled when `REDIS_URL` is set
+- Dockerized local dev: app + postgres + redis via Docker Compose
 
----
+## Environment variables
 
-## 🗂 Folder Structure
+- Repo root: `.env` is used by Docker Compose
+- App template: `student-app/.env.example`
 
-- **app/**  
-  Contains application routes and pages using Next.js App Router.
-  Each route represents a screen in the chat application.
-- **components/**  
-  Stores reusable UI components such as chat items, message bubbles,
-  input boxes, and buttons. This improves reusability and consistency.
-- **lib/**  
-  Contains helper functions and configurations like authentication logic,
-  database clients, and socket configuration.
+Never hardcode secrets in source code.
 
+## Local development (Docker)
 
-### TypeScript Strict Configuration
-Strict TypeScript mode is enabled to catch errors during development.
-Rules like noImplicitAny and noUnusedLocals help reduce runtime bugs
-and keep the codebase clean and maintainable.
+1) Start Docker Desktop
+2) From repo root:
 
+- `docker compose up --build`
 
-### Environment Variable Management 
-- Added environment variable setup using .env.local and .env.example
-- Protected secrets using .gitignore
-- Documented environment variables in README
-### Reflection
-This setup ensures secure handling of secrets and makes the project
-easy to configure across different environments.
+Open `http://localhost:3000`
 
+## Local development (no Docker)
 
-## Team Branching & PR Workflow
-### Branch Naming Convention
-- feature/<feature-name>
-- fix/<bug-name>
-- chore/<task-name>
-- docs/<update-name>
-### Example Branches
-- feature/login-auth
-- chore/env-setup
-- docs/update-readme
+From `student-app/`:
 
-We use feature-based branches and pull requests.
-A PR template ensures consistency, and all changes go through review before merging into main.”
+- `npm install`
+- `npm run db:migrate`
+- `npm run db:seed`
+- `npm run dev`
 
+## Git workflow
 
+Use feature branches + PRs:
 
-## 🐳 Docker & Local Development Setup
-This project uses Docker and Docker Compose to run the full stack locally.
+- `feature/<name>`
+- `fix/<name>`
+- `chore/<name>`
