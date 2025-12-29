@@ -1,4 +1,4 @@
-﻿###Inchat
+###Inchat
 Inchat is a WhatsApp-like one-to-one realtime chat app built with Next.js (TypeScript), Prisma, PostgreSQL, and Socket.IO.
 
 Whats included
