@@ -1,0 +1,92 @@
+// Prisma Schema for Inchat
+// Normalized relational database design for one-to-one chat (PostgreSQL)
+// Last Updated: December 2025
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== CORE ENTITIES ====================
+
+model User {
+  id            String    @id @default(uuid()) @db.Uuid
+  email         String    @unique @db.VarChar(320)
+  displayName   String    @db.VarChar(80)
+  passwordHash  String    @db.VarChar(255)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sentMessages  Message[]
+  participants  ChatParticipant[]
+
+  directChatsAsUser1 DirectChat[] @relation("DirectChatUser1")
+  directChatsAsUser2 DirectChat[] @relation("DirectChatUser2")
+
+  @@index([createdAt])
+}
+
+model Chat {
+  id           String            @id @default(uuid()) @db.Uuid
+  type         ChatType          @default(DIRECT)
+  createdAt    DateTime          @default(now())
+  updatedAt    DateTime          @updatedAt
+
+  participants ChatParticipant[]
+  messages     Message[]
+  direct       DirectChat?
+
+  @@index([updatedAt])
+}
+
+model ChatParticipant {
+  chatId     String   @db.Uuid
+  userId     String   @db.Uuid
+  joinedAt   DateTime @default(now())
+  lastReadAt DateTime?
+
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+  @@index([userId])
+  @@index([chatId])
+}
+
+// Enforces uniqueness of direct chats between two users.
+// Application code MUST store user1Id/user2Id in stable sorted order.
+model DirectChat {
+  chatId  String @id @db.Uuid
+  user1Id String @db.Uuid
+  user2Id String @db.Uuid
+
+  chat  Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user1 User @relation("DirectChatUser1", fields: [user1Id], references: [id], onDelete: Cascade)
+  user2 User @relation("DirectChatUser2", fields: [user2Id], references: [id], onDelete: Cascade)
+
+  @@unique([user1Id, user2Id])
+  @@index([user1Id])
+  @@index([user2Id])
+}
+
+model Message {
+  id        String   @id @default(uuid()) @db.Uuid
+  chatId    String   @db.Uuid
+  senderId  String   @db.Uuid
+  content   String   @db.Text
+  createdAt DateTime @default(now())
+
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@index([senderId, createdAt])
+}
+
+enum ChatType {
+  DIRECT
+}
