@@ -113,7 +113,11 @@ prisma/
 |---------|---------|
 | `npm run dev` | Start development server with hot reload |
 | `npm run build` | Build Next.js and Node.js server |
+| `npm run build:staging` | Build for staging environment |
+| `npm run build:production` | Build for production environment |
 | `npm start` | Start production server |
+| `npm run start:staging` | Start staging server |
+| `npm run start:production` | Start production server |
 | `npm run lint` | Run ESLint code validation |
 | `npm run db:migrate` | Create database migration |
 | `npm run db:seed` | Seed database with initial data |
@@ -173,8 +177,135 @@ This starts:
 |----------|-------------|----------|
 | `DATABASE_URL` | PostgreSQL connection string | ✅ |
 | `JWT_SECRET` | Secret key for JWT signing | ✅ |
+| `NEXT_PUBLIC_API_URL` | Frontend API endpoint (public) | ✅ |
+| `NEXT_PUBLIC_SOCKET_IO_URL` | WebSocket endpoint (public) | ✅ |
 | `REDIS_URL` | Redis connection string | ❌ |
-| `NODE_ENV` | Environment (development/production) | ❌ |
+| `NODE_ENV` | Environment (development/production) | ✅ |
+
+## Environment-Aware Builds & Secrets Management
+
+### Multi-Environment Setup
+
+This project supports separate configurations for **development**, **staging**, and **production** environments.
+
+#### Environment Files
+
+- **`.env.example`** - Template file (tracked in git) showing all required variables
+- **`.env.development`** - Local development configuration (NOT tracked)
+- **`.env.staging`** - Staging environment configuration (NOT tracked)
+- **`.env.production`** - Production environment configuration (NOT tracked)
+
+#### Build Commands
+
+```bash
+# Development (uses .env.development)
+npm run dev
+
+# Staging build
+npm run build:staging
+npm run start:staging
+
+# Production build
+npm run build:production
+npm run start:production
+```
+
+### Secrets Management
+
+**Never hardcode secrets** in your code or configuration files. Instead, use secure management:
+
+#### Option 1: GitHub Secrets (Recommended for GitHub Actions)
+
+Store sensitive values in `Settings → Secrets and variables → Actions`:
+
+```
+STAGING_DB_PASSWORD
+STAGING_JWT_SECRET
+STAGING_REDIS_PASSWORD
+PROD_DB_PASSWORD
+PROD_JWT_SECRET
+PROD_REDIS_PASSWORD
+```
+
+#### Option 2: AWS Parameter Store
+
+```bash
+aws ssm put-parameter --name "inchat/prod/db-password" --value "secret" --type "SecureString"
+```
+
+#### Option 3: Azure Key Vault
+
+```bash
+az keyvault secret set --vault-name inchat-vault --name "prod-db-password" --value "secret"
+```
+
+### CI/CD Pipeline
+
+GitHub Actions automatically builds and deploys when you push to:
+
+- **`develop` branch** → Staging deployment
+- **`main` branch** → Production deployment
+
+The workflow:
+1. Checks out code
+2. Installs dependencies
+3. Runs linting and tests
+4. Creates environment file with secrets from GitHub Secrets
+5. Builds for the target environment
+6. Deploys to staging or production
+7. Sends notifications
+
+See [`.github/workflows/build-and-deploy.yml`](.github/workflows/build-and-deploy.yml) for details.
+
+### Security Best Practices
+
+✅ **DO**
+- Store secrets in GitHub Secrets, AWS Parameter Store, or Azure Key Vault
+- Use environment-specific secrets for each environment
+- Keep `.env.example` tracked and updated
+- Rotate secrets regularly (quarterly minimum)
+- Use strong, unique secrets (min 32 characters)
+- Audit who has access to production secrets
+
+❌ **DON'T**
+- Hardcode secrets in code or `.env` files
+- Commit `.env.development`, `.env.staging`, or `.env.production`
+- Share secrets via email or chat
+- Use the same secret across environments
+- Push secrets to version control history
+
+### Environment-Specific Configuration
+
+#### Development
+- Uses `localhost` for all services
+- Debug mode enabled
+- Verbose logging
+- Hot reload enabled
+
+#### Staging
+- Points to staging infrastructure (AWS RDS, Azure Database, etc.)
+- Production-like environment
+- Moderate logging
+- For testing before production
+
+#### Production
+- Points to production infrastructure
+- Minimal logging (warnings only)
+- Maximum security
+- All secrets from secure stores
+- Health checks and monitoring
+
+### Comprehensive Secrets Documentation
+
+For detailed setup instructions, environment variables for each stage, and troubleshooting, see [ENVIRONMENT_SETUP.md](ENVIRONMENT_SETUP.md).
+
+This guide includes:
+- Step-by-step GitHub Secrets setup
+- AWS Parameter Store integration
+- Azure Key Vault integration
+- Secret rotation procedures
+- CI/CD pipeline configuration
+- Troubleshooting common issues
 
 ## Development Tips
 
@@ -182,6 +313,7 @@ This starts:
 - Check logs in browser DevTools Console for Socket.IO events
 - Use Prisma extension in VS Code for schema highlighting
 - Run `npm run lint` before committing code
+- Always use environment-specific builds for deployments
 
 ## Performance Optimizations
 
@@ -189,30 +321,46 @@ This starts:
 - Indexed database fields for faster queries
 - Normalized schema prevents data duplication
 - Socket.IO rooms reduce message broadcast scope
+- Separate staging/production prevents accidental data issues
 
 ## Troubleshooting
 
 **Can't connect to database?**
 - Ensure PostgreSQL is running
-- Check `DATABASE_URL` in `.env.local`
+- Check `DATABASE_URL` in correct `.env` file
 - Run `npm run db:push` to sync schema
+
+**Build failing with undefined variables?**
+- Check if all required environment variables are set
+- Verify GitHub Secrets are created with correct names
+- Ensure `.env` file exists for the target environment
 
 **WebSocket connection failing?**
 - Check browser Network tab for `/socket.io` requests
-- Ensure `REDIS_URL` is set if using Redis
+- Ensure `NEXT_PUBLIC_SOCKET_IO_URL` is correct
 - Verify Socket.IO configuration in server setup
+- Check if REDIS_URL is set for production
+
+**Secrets not updating after change?**
+- GitHub Secrets are cached during workflow
+- Trigger a new deployment after updating secrets
+- Wait for previous deployment to complete first
 
 **Build errors?**
 - Run `npm install` to ensure dependencies
 - Delete `node_modules` and `.next` folders
 - Run `npm run db:push` to sync database schema
+- Check Node.js version matches requirement (18+)
 
 ## Contributing
 
 1. Create a feature branch: `git checkout -b feature/your-feature`
-2. Commit changes: `git commit -m "Add your feature"`
-3. Push to branch: `git push origin feature/your-feature`
-4. Open a Pull Request
+2. Create `.env.development` from `.env.example` and configure locally
+3. Test locally with `npm run dev`
+4. Commit changes: `git commit -m "Add your feature"`
+5. Push to branch: `git push origin feature/your-feature`
+6. Open a Pull Request
+7. CI/CD will automatically test and build
 
 ## License
 

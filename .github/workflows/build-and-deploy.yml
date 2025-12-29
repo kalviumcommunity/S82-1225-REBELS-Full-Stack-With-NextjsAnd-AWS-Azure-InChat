@@ -1,0 +1,323 @@
+name: Build & Deploy to Staging & Production
+
+on:
+  push:
+    branches:
+      - develop  # Staging builds trigger on develop
+      - main     # Production builds trigger on main
+  pull_request:
+    branches:
+      - develop
+      - main
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+jobs:
+  # ========================================
+  # LINT & TEST (Run on all branches)
+  # ========================================
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Run Type Check
+        run: npx tsc --noEmit
+
+  # ========================================
+  # BUILD & DEPLOY TO STAGING
+  # ========================================
+  build-staging:
+    name: Build & Deploy Staging
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/develop' && github.event_name == 'push'
+    environment: staging
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Create Staging Environment File
+        run: |
+          cat > .env.staging << EOF
+          # Database Configuration
+          DATABASE_URL=postgresql://inchat_staging:${{ secrets.STAGING_DB_PASSWORD }}@staging-db.example.com:5432/inchat_staging
+          
+          # Authentication
+          JWT_SECRET=${{ secrets.STAGING_JWT_SECRET }}
+          
+          # API Configuration
+          NEXT_PUBLIC_API_URL=${{ secrets.STAGING_API_URL }}
+          NEXT_PUBLIC_SOCKET_IO_URL=${{ secrets.STAGING_SOCKET_IO_URL }}
+          
+          # Redis
+          REDIS_URL=redis://:${{ secrets.STAGING_REDIS_PASSWORD }}@staging-redis.example.com:6379
+          
+          # Environment
+          NODE_ENV=production
+          ENVIRONMENT=staging
+          
+          # Logging
+          DEBUG=false
+          LOG_LEVEL=info
+          EOF
+
+      - name: Build for Staging
+        run: npm run build:staging
+        env:
+          NODE_ENV: production
+          ENVIRONMENT: staging
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: staging-build
+          path: |
+            .next
+            dist
+            package.json
+            public
+
+      - name: Log Build Success
+        run: |
+          echo "✅ Staging Build Complete"
+          echo "Build Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref }}"
+
+      # ====== DEPLOYMENT STEPS ======
+      # Add your deployment steps here
+      # Examples below:
+
+      - name: Deploy to Staging (Placeholder)
+        run: |
+          echo "🚀 Deploying to Staging Environment..."
+          # Example 1: Deploy to Vercel
+          # npm install -g vercel
+          # vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
+          
+          # Example 2: Deploy to AWS
+          # aws s3 sync .next s3://inchat-staging-bucket/ --delete
+          # aws cloudfront create-invalidation --distribution-id ${{ secrets.AWS_CLOUDFRONT_ID }} --paths "/*"
+          
+          # Example 3: Deploy Docker to ECR
+          # aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.AWS_ECR_REGISTRY }}
+          # docker build -t inchat:staging .
+          # docker tag inchat:staging ${{ secrets.AWS_ECR_REGISTRY }}/inchat:staging
+          # docker push ${{ secrets.AWS_ECR_REGISTRY }}/inchat:staging
+          
+          # Example 4: Deploy to Azure
+          # az webapp up --name inchat-staging --resource-group inchat-rg --plan inchat-plan
+          
+          echo "✅ Deployment Complete"
+
+      - name: Notify Slack (Staging)
+        if: always()
+        uses: slackapi/slack-github-action@v1.25
+        with:
+          payload: |
+            {
+              "text": "Staging Deployment: ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Staging Build* `${{ job.status }}`\nCommit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\nBranch: `develop`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  # ========================================
+  # BUILD & DEPLOY TO PRODUCTION
+  # ========================================
+  build-production:
+    name: Build & Deploy Production
+    runs-on: ubuntu-latest
+    needs: lint-and-test
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    environment: production
+    
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18'
+          cache: 'npm'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Create Production Environment File
+        run: |
+          cat > .env.production << EOF
+          # Database Configuration
+          DATABASE_URL=postgresql://inchat_prod:${{ secrets.PROD_DB_PASSWORD }}@prod-db.example.com:5432/inchat_prod
+          
+          # Authentication
+          JWT_SECRET=${{ secrets.PROD_JWT_SECRET }}
+          
+          # API Configuration
+          NEXT_PUBLIC_API_URL=${{ secrets.PROD_API_URL }}
+          NEXT_PUBLIC_SOCKET_IO_URL=${{ secrets.PROD_SOCKET_IO_URL }}
+          
+          # Redis
+          REDIS_URL=redis://:${{ secrets.PROD_REDIS_PASSWORD }}@prod-redis.example.com:6379
+          
+          # Environment
+          NODE_ENV=production
+          ENVIRONMENT=production
+          
+          # Logging
+          DEBUG=false
+          LOG_LEVEL=warn
+          
+          # Analytics
+          NEXT_PUBLIC_ANALYTICS_ID=${{ secrets.PROD_ANALYTICS_ID }}
+          EOF
+
+      - name: Build for Production
+        run: npm run build:production
+        env:
+          NODE_ENV: production
+          ENVIRONMENT: production
+
+      - name: Upload Build Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: production-build
+          path: |
+            .next
+            dist
+            package.json
+            public
+
+      - name: Log Build Success
+        run: |
+          echo "✅ Production Build Complete"
+          echo "Build Timestamp: $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "Commit: ${{ github.sha }}"
+          echo "Branch: ${{ github.ref }}"
+
+      # ====== DEPLOYMENT STEPS ======
+      # Add your deployment steps here
+      # Examples below (SAME as staging but with PROD secrets):
+
+      - name: Deploy to Production (Placeholder)
+        run: |
+          echo "🚀 Deploying to Production Environment..."
+          echo "⚠️  PRODUCTION DEPLOYMENT - EXTRA CAUTION"
+          
+          # Example 1: Deploy to Vercel Production
+          # npm install -g vercel
+          # vercel deploy --prod --token=${{ secrets.VERCEL_TOKEN }} --scope=${{ secrets.VERCEL_ORG_ID }}
+          
+          # Example 2: Deploy to AWS Production
+          # aws s3 sync .next s3://inchat-prod-bucket/ --delete
+          # aws cloudfront create-invalidation --distribution-id ${{ secrets.PROD_AWS_CLOUDFRONT_ID }} --paths "/*"
+          
+          # Example 3: Deploy Docker to ECR Production
+          # aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin ${{ secrets.PROD_AWS_ECR_REGISTRY }}
+          # docker build -t inchat:latest .
+          # docker tag inchat:latest ${{ secrets.PROD_AWS_ECR_REGISTRY }}/inchat:latest
+          # docker push ${{ secrets.PROD_AWS_ECR_REGISTRY }}/inchat:latest
+          
+          # Example 4: Deploy to Azure Production
+          # az webapp up --name inchat-prod --resource-group inchat-prod-rg --plan inchat-prod-plan
+          
+          echo "✅ Production Deployment Complete"
+
+      - name: Health Check
+        run: |
+          echo "🏥 Running Health Checks..."
+          # Add health check endpoints here
+          # curl -f https://api.inchat.example.com/api/auth/me || exit 1
+          echo "✅ Health Checks Passed"
+
+      - name: Notify Slack (Production)
+        if: always()
+        uses: slackapi/slack-github-action@v1.25
+        with:
+          payload: |
+            {
+              "text": "Production Deployment: ${{ job.status }}",
+              "blocks": [
+                {
+                  "type": "section",
+                  "text": {
+                    "type": "mrkdwn",
+                    "text": "*Production Build* `${{ job.status }}`\nCommit: <${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}|${{ github.sha }}>\nBranch: `main`"
+                  }
+                }
+              ]
+            }
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          SLACK_WEBHOOK_TYPE: INCOMING_WEBHOOK
+
+  # ========================================
+  # SECURITY SCAN
+  # ========================================
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Run Trivy Vulnerability Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          scan-type: 'fs'
+          scan-ref: '.'
+          format: 'sarif'
+          output: 'trivy-results.sarif'
+
+      - name: Upload Trivy Results
+        uses: github/codeql-action/upload-sarif@v2
+        if: always()
+        with:
+          sarif_file: 'trivy-results.sarif'
+
+      - name: Check for Exposed Secrets
+        run: |
+          # Using git-secrets or similar tool
+          echo "🔍 Scanning for exposed secrets..."
+          if grep -r "private_key\|password\|token\|secret" --include="*.ts" --include="*.tsx" --include="*.js" src/ app/; then
+            echo "⚠️ WARNING: Potential secrets found in code"
+            exit 1
+          fi
+          echo "✅ No hardcoded secrets detected"
