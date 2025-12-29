@@ -8,6 +8,29 @@ const createSchema = z.object({
   otherUserId: z.string().uuid(),
 });
 
+type ChatWithDetails = {
+  id: string;
+  type: string;
+  updatedAt: Date;
+  participants: {
+    userId: string;
+    user: {
+      id: string;
+      displayName: string;
+      email: string;
+    };
+  }[];
+  messages: {
+    id: string;
+    content: string;
+    createdAt: Date;
+    sender: {
+      id: string;
+      displayName: string;
+    };
+  }[];
+};
+
 export async function GET() {
   const me = await requireUserId();
 
@@ -32,7 +55,7 @@ export async function GET() {
     },
   });
 
-    const result = chats.map((c) => {
+    const result = (chats as ChatWithDetails[]).map((c) => {
     const other = c.participants.find((p) => p.userId !== me)?.user ?? null;
     const lastMessage = c.messages[0] ?? null;
     return {
