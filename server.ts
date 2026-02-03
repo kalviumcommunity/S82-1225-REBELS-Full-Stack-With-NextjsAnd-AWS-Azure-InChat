@@ -50,10 +50,18 @@ async function main(): Promise<void> {
 
   // Optional Redis adapter for horizontal scaling
   if (env.REDIS_URL) {
-    const pubClient = createClient({ url: env.REDIS_URL });
-    const subClient = pubClient.duplicate();
-    await Promise.all([pubClient.connect(), subClient.connect()]);
-    io.adapter(createAdapter(pubClient, subClient));
+    try {
+      const pubClient = createClient({ url: env.REDIS_URL });
+      const subClient = pubClient.duplicate();
+      await Promise.all([pubClient.connect(), subClient.connect()]);
+      io.adapter(createAdapter(pubClient, subClient));
+      console.log('Socket.IO Redis adapter enabled');
+    } catch (err) {
+      console.warn(
+        'REDIS_URL is set but Redis is not reachable; continuing without Redis adapter.',
+        err,
+      );
+    }
   }
 
   io.use(async (socket, nextFn) => {

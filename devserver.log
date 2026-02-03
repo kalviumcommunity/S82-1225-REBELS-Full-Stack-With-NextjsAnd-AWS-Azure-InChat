@@ -1,0 +1,4 @@
+
+> student-app@0.1.0 dev
+> ts-node --project tsconfig.server.json server.ts
+
