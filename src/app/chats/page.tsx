@@ -100,7 +100,7 @@ export default function ChatsPage() {
     <div className="mx-auto flex min-h-screen w-full max-w-3xl flex-col px-6 py-10">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold">Chats</h1>
+          <h1 className="text-2xl font-semibold">InChat</h1>
           <p className="text-sm text-zinc-600">Signed in as {me?.displayName}</p>
         </div>
         <button className="rounded-md border px-3 py-2 text-sm" onClick={logout}>

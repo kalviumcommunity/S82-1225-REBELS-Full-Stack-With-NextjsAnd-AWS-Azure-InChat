@@ -1,4 +1,5 @@
 import { PrismaClient } from '@prisma/client';
+import bcrypt from 'bcryptjs';
 
 const prisma = new PrismaClient();
 
@@ -13,32 +14,58 @@ async function main() {
 
   console.log('Cleared existing data');
 
-  // NOTE: These are demo hashes. In app code we hash with bcrypt.
+  // NOTE: All test users use password: "password"
+  const testPasswordHash = await bcrypt.hash('password', 10);
+  
   const alice = await prisma.user.create({
     data: {
-      email: 'alice@example.com',
-      displayName: 'Alice',
-      passwordHash: '$2a$10$8S8K8S8K8S8K8S8K8S8K8u2bGm4VvGQe3r0H2y3Qq8WJm3Qm3q6mK',
+      email: 'bhavindrakumaryarramalla@gmail.com',
+      displayName: 'Bhavi',
+      passwordHash: testPasswordHash,
     },
   });
 
   const bob = await prisma.user.create({
     data: {
-      email: 'bob@example.com',
-      displayName: 'Bob',
-      passwordHash: '$2a$10$8S8K8S8K8S8K8S8K8S8K8u2bGm4VvGQe3r0H2y3Qq8WJm3Qm3q6mK',
+      email: 'orangebro1626@gmail.com',
+      displayName: 'Shiva Keshav',
+      passwordHash: testPasswordHash,
     },
   });
 
   const charlie = await prisma.user.create({
     data: {
-      email: 'charlie@example.com',
-      displayName: 'Charlie',
-      passwordHash: '$2a$10$8S8K8S8K8S8K8S8K8S8K8u2bGm4VvGQe3r0H2y3Qq8WJm3Qm3q6mK',
+      email: 'kokkubro28@gmail.com',
+      displayName: 'Dhanush',
+      passwordHash: testPasswordHash,
     },
   });
 
-  console.log('Created 3 users');
+  await prisma.user.create({
+    data: {
+      email: 'shivakeshavgoud@gmail.com',
+      displayName: 'Shiva',
+      passwordHash: testPasswordHash,
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      email: 'dhanushkokku28@gmail.com',
+      displayName: 'Dhanush',
+      passwordHash: testPasswordHash,
+    },
+  });
+
+  await prisma.user.create({
+    data: {
+      email: 'bhavendrakumar007@gmail.com',
+      displayName: 'Bhavendra',
+      passwordHash: testPasswordHash,
+    },
+  });
+
+  console.log('Created 6 users');
 
   // Create a direct chat between Alice and Bob
   const user1Id = alice.id < bob.id ? alice.id : bob.id;
@@ -65,12 +92,12 @@ async function main() {
       {
         chatId: chat.id,
         senderId: alice.id,
-        content: 'Hey Bob! Welcome to Inchat.',
+        content: 'Hey Kokku! Welcome to Inchat.',
       },
       {
         chatId: chat.id,
         senderId: bob.id,
-        content: 'Hey Alice! This feels like WhatsApp already 👀',
+        content: 'Hey Bhavi! This feels like WhatsApp already 👀',
       },
     ],
   });
@@ -104,7 +131,7 @@ async function main() {
 
   console.log('✨ Database seeding completed successfully!');
   console.log('\n📊 Summary:');
-  console.log('  - Users: 3');
+  console.log('  - Users: 6');
   console.log('  - Chats: 2');
   console.log('  - Messages: 3');
 }
