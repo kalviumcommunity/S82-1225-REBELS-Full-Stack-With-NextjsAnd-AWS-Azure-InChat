@@ -1,0 +1,11 @@
+# Root env (docker compose)
+.env
+
+# Local volumes / generated
+**/node_modules/
+**/.next/
+**/dist/
+
+# OS
+Thumbs.db
+.DS_Store
